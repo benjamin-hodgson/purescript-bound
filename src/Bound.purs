@@ -16,9 +16,9 @@ import Control.Monad.RWS (RWST)
 import Control.Monad.Reader (ReaderT)
 import Control.Monad.State (StateT)
 import Control.Monad.Writer (WriterT)
-import Data.Bifunctor (class Bifunctor)
-import Data.Bifoldable (class Bifoldable, bifoldrDefault, bifoldlDefault)
-import Data.Bitraversable (class Bitraversable, bisequenceDefault)
+import Data.Bifunctor (class Bifunctor, bimap)
+import Data.Bifoldable (class Bifoldable, bifoldMap, bifoldrDefault, bifoldlDefault)
+import Data.Bitraversable (class Bitraversable, bitraverse, bisequenceDefault)
 import Data.Foldable (class Foldable, foldMap, foldrDefault, foldlDefault)
 import Data.Generic (class Generic, gShow)
 import Data.Traversable (class Traversable, traverse, sequenceDefault)
@@ -166,5 +166,46 @@ instantiate f scope = do
         F a -> a
 instantiate1 :: forall a b f. Monad f => f a -> Scope b f a -> f a
 instantiate1 expr = instantiate (const expr)
+
+splat :: forall a b c f. Monad f => (a -> f c) -> (b -> f c) -> Scope b f a -> f c
+splat f g s = do
+    var <- unScope s
+    case var of
+        B b -> g b
+        F expr -> expr >>= f
+
+bindings :: forall a b f. Foldable f => Scope b f a -> Array b
+bindings = foldMap f <<< unScope
+    where f (B v) = [v]
+          f _ = []
+
+mapBound :: forall a b c f. Functor f => (b -> c) -> Scope b f a -> Scope c f a
+mapBound f = mapScope f id
+
+mapScope :: forall a b c d f. Functor f => (b -> d) -> (a -> c) -> Scope b f a -> Scope d f c
+mapScope f g = Scope <<< map (bimap f (map g)) <<< unScope
+
+foldMapBound :: forall a b m f. (Foldable f, Monoid m) => (b -> m) -> Scope b f a -> m
+foldMapBound f = foldMapScope f (const mempty)
+
+foldMapScope :: forall a b m f. (Foldable f, Monoid m) => (b -> m) -> (a -> m) -> Scope b f a -> m
+foldMapScope f g = foldMap (bifoldMap f (foldMap g)) <<< unScope
+
+traverseBound :: forall a b c f m. (Traversable f, Applicative m) => (b -> m c) -> Scope b f a -> m (Scope c f a)
+traverseBound f = traverseScope f pure
+
+traverseScope :: forall a b c d f m. (Traversable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m (Scope d f c)
+traverseScope f g (Scope s) = map Scope (traverse (bitraverse f (traverse g)) s)
+
+traverseBound_ :: forall a b c f m. (Traversable f, Applicative m) => (b -> m c) -> Scope b f a -> m Unit
+traverseBound_ f = map (const unit) <<< traverseBound f
+
+traverseScope_ :: forall a b c d f m. (Traversable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m Unit
+traverseScope_ f g = map (const unit) <<< traverseScope f g
+
+hoistScope :: forall f g a b. Functor f => (forall x. f x -> g x) -> Scope b f a -> Scope b g a
+hoistScope eta = Scope <<< eta <<< map (map eta) <<< unScope
+
+
 
 
