@@ -4,9 +4,17 @@ module Bound (
     Scope(..), unScope,
     fromScope, toScope,
     abstract, abstract1,
-    instantiate, instantiate1
+    instantiate, instantiate1,
+    splat,
+    bindings,
+    mapBound, mapScope,
+    foldMapBound, foldMapScope,
+    traverseBound, traverseScope,
+    traverseBound_, traverseScope_,
+    hoistScope
     ) where
 
+import Control.Apply (lift2)
 import Control.Monad.Trans.Class (class MonadTrans, lift)
 import Control.Monad.Cont (ContT)
 import Control.Monad.Except (ExceptT)
@@ -197,11 +205,21 @@ traverseBound f = traverseScope f pure
 traverseScope :: forall a b c d f m. (Traversable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m (Scope d f c)
 traverseScope f g = map Scope <<< traverse (bitraverse f (traverse g)) <<< unScope
 
-traverseBound_ :: forall a b c f m. (Traversable f, Applicative m) => (b -> m c) -> Scope b f a -> m Unit
-traverseBound_ f = map (const unit) <<< traverseBound f
+newtype AM f a = AM (f a)  -- for "Applicative Monoid"
+getAM :: forall f a. AM f a -> f a
+getAM (AM x) = x
 
-traverseScope_ :: forall a b c d f m. (Traversable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m Unit
-traverseScope_ f g = map (const unit) <<< traverseScope f g
+instance semigroupAM :: (Semigroup a, Apply f) => Semigroup (AM f a) where
+    append (AM x) (AM y) = AM (lift2 append x y)
+instance monoidAM :: (Monoid a, Applicative f) => Monoid (AM f a) where
+    mempty = AM $ pure mempty
+
+
+traverseBound_ :: forall a b c f m. (Foldable f, Applicative m) => (b -> m c) -> Scope b f a -> m Unit
+traverseBound_ f = getAM <<< foldMapBound (AM <<< map (const unit) <<< f)
+
+traverseScope_ :: forall a b c d f m. (Foldable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m Unit
+traverseScope_ f g = getAM <<< foldMapScope (AM <<< map (const unit) <<< f) (AM <<< map (const unit) <<< g)
 
 hoistScope :: forall f g a b. Functor f => (forall x. f x -> g x) -> Scope b f a -> Scope b g a
 hoistScope eta = Scope <<< eta <<< map (map eta) <<< unScope
