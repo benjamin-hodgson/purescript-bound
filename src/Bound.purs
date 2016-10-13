@@ -19,9 +19,9 @@ import Control.Monad.Writer (WriterT)
 import Data.Bifunctor (class Bifunctor)
 import Data.Bifoldable (class Bifoldable, bifoldrDefault, bifoldlDefault)
 import Data.Bitraversable (class Bitraversable, bisequenceDefault)
-import Data.Foldable (class Foldable, foldrDefault, foldlDefault)
+import Data.Foldable (class Foldable, foldMap, foldrDefault, foldlDefault)
 import Data.Generic (class Generic, gShow)
-import Data.Traversable (class Traversable, sequenceDefault)
+import Data.Traversable (class Traversable, traverse, sequenceDefault)
 import Data.Maybe (Maybe(..))
 import Data.Monoid (class Monoid, mempty)
 import Prelude
@@ -139,6 +139,14 @@ instance monadTransScope :: MonadTrans (Scope b) where
     lift m = Scope (pure (F m))
 instance boundScope :: Bound (Scope b) where
     subst = substDefault
+
+instance foldableScope :: Foldable f => Foldable (Scope b f) where
+    foldMap f = foldMap (foldMap (foldMap f)) <<< unScope
+    foldr f = foldrDefault f
+    foldl f = foldlDefault f
+instance traversableScope :: Traversable f => Traversable (Scope b f) where
+    traverse f = map Scope <<< traverse (traverse (traverse f)) <<< unScope
+    sequence s = sequenceDefault s
 
 
 abstract :: forall a b f. Monad f => (a -> Maybe b) -> f a -> Scope b f a
