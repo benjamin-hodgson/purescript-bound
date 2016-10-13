@@ -1,0 +1,17 @@
+{
+  "name": "purescript-bound",
+  "license": "BSD-3-Clause",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-transformers": "^2.0.1",
+    "purescript-bifunctors": "^2.0.0",
+    "purescript-foldable-traversable": "^2.0.0",
+    "purescript-maybe": "^2.0.0",
+    "purescript-generics": "^3.0.0"
+  }
+}
