@@ -1,6 +1,10 @@
 {
   "name": "purescript-bound",
   "license": "BSD-3-Clause",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/benjamin-hodgson/purescript-bound.git"
+  },
   "ignore": [
     "**/.*",
     "node_modules",
