@@ -195,7 +195,7 @@ traverseBound :: forall a b c f m. (Traversable f, Applicative m) => (b -> m c) 
 traverseBound f = traverseScope f pure
 
 traverseScope :: forall a b c d f m. (Traversable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m (Scope d f c)
-traverseScope f g (Scope s) = map Scope (traverse (bitraverse f (traverse g)) s)
+traverseScope f g = map Scope <<< traverse (bitraverse f (traverse g)) <<< unScope
 
 traverseBound_ :: forall a b c f m. (Traversable f, Applicative m) => (b -> m c) -> Scope b f a -> m Unit
 traverseBound_ f = map (const unit) <<< traverseBound f
