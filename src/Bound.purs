@@ -1,4 +1,6 @@
 module Bound (
+    substitute, substituteVar,
+    closed,
     class Bound, subst, flipSubst, (=<<<), (>>>=), substDefault,
     Var(..),
     Scope(..), unScope,
@@ -33,6 +35,20 @@ import Data.Traversable (class Traversable, traverse, sequenceDefault)
 import Data.Maybe (Maybe(..))
 import Data.Monoid (class Monoid, mempty)
 import Prelude
+
+
+substitute :: forall f a. (Monad f, Eq a) => a -> f a -> f a -> f a
+substitute v s t = do
+    x <- t
+    if x == v
+        then s
+        else pure x
+
+substituteVar :: forall f a. (Functor f, Eq a) => a -> a -> f a -> f a
+substituteVar v s = map (\x -> if x == v then s else x)
+
+closed :: forall f a b. Traversable f => f a -> Maybe (f b)
+closed = traverse (const Nothing)
 
 
 class Bound t where
