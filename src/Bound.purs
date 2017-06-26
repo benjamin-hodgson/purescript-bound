@@ -37,14 +37,14 @@ import Data.Monoid (class Monoid, mempty)
 import Prelude
 
 
-substitute :: forall f a. (Monad f, Eq a) => a -> f a -> f a -> f a
+substitute :: forall f a. Monad f => Eq a => a -> f a -> f a -> f a
 substitute v s t = do
     x <- t
     if x == v
         then s
         else pure x
 
-substituteVar :: forall f a. (Functor f, Eq a) => a -> a -> f a -> f a
+substituteVar :: forall f a. Functor f => Eq a => a -> a -> f a -> f a
 substituteVar v s = map (\x -> if x == v then s else x)
 
 closed :: forall f a b. Traversable f => f a -> Maybe (f b)
@@ -54,10 +54,10 @@ closed = traverse (const Nothing)
 class Bound t where
     subst :: forall f a c. Monad f => (a -> f c) -> t f a -> t f c
 
-substDefault :: forall t f a c. (MonadTrans t, Monad f, Monad (t f)) => (a -> f c) -> t f a -> t f c
+substDefault :: forall t f a c. MonadTrans t => Monad f => Monad (t f) => (a -> f c) -> t f a -> t f c
 substDefault f m = m >>= (f >>> lift)
 
-flipSubst :: forall f t a c. (Bound t, Monad f) => t f a -> (a -> f c) -> t f c
+flipSubst :: forall f t a c. Bound t => Monad f => t f a -> (a -> f c) -> t f c
 flipSubst = flip subst
 
 infixl 1 subst as =<<<
@@ -178,7 +178,7 @@ abstract f = Scope <<< map g
     where g var = case f var of
             Nothing -> F (pure var)
             Just b -> B b
-abstract1 :: forall a f. (Eq a, Monad f) => a -> f a -> Scope Unit f a
+abstract1 :: forall a f. Eq a => Monad f => a -> f a -> Scope Unit f a
 abstract1 x = abstract (\y -> if x == y then Just unit else Nothing)
 
 
@@ -209,16 +209,16 @@ mapBound f = mapScope f id
 mapScope :: forall a b c d f. Functor f => (b -> d) -> (a -> c) -> Scope b f a -> Scope d f c
 mapScope f g = Scope <<< map (bimap f (map g)) <<< unScope
 
-foldMapBound :: forall a b m f. (Foldable f, Monoid m) => (b -> m) -> Scope b f a -> m
+foldMapBound :: forall a b m f. Foldable f => Monoid m => (b -> m) -> Scope b f a -> m
 foldMapBound f = foldMapScope f (const mempty)
 
-foldMapScope :: forall a b m f. (Foldable f, Monoid m) => (b -> m) -> (a -> m) -> Scope b f a -> m
+foldMapScope :: forall a b m f. Foldable f => Monoid m => (b -> m) -> (a -> m) -> Scope b f a -> m
 foldMapScope f g = foldMap (bifoldMap f (foldMap g)) <<< unScope
 
-traverseBound :: forall a b c f m. (Traversable f, Applicative m) => (b -> m c) -> Scope b f a -> m (Scope c f a)
+traverseBound :: forall a b c f m. Traversable f => Applicative m => (b -> m c) -> Scope b f a -> m (Scope c f a)
 traverseBound f = traverseScope f pure
 
-traverseScope :: forall a b c d f m. (Traversable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m (Scope d f c)
+traverseScope :: forall a b c d f m. Traversable f => Applicative m => (b -> m d) -> (a -> m c) -> Scope b f a -> m (Scope d f c)
 traverseScope f g = map Scope <<< traverse (bitraverse f (traverse g)) <<< unScope
 
 newtype AM f a = AM (f a)  -- for "Applicative Monoid"
@@ -231,10 +231,10 @@ instance monoidAM :: (Monoid a, Applicative f) => Monoid (AM f a) where
     mempty = AM $ pure mempty
 
 
-traverseBound_ :: forall a b c f m. (Foldable f, Applicative m) => (b -> m c) -> Scope b f a -> m Unit
+traverseBound_ :: forall a b c f m. Foldable f => Applicative m => (b -> m c) -> Scope b f a -> m Unit
 traverseBound_ f = getAM <<< foldMapBound (AM <<< map (const unit) <<< f)
 
-traverseScope_ :: forall a b c d f m. (Foldable f, Applicative m) => (b -> m d) -> (a -> m c) -> Scope b f a -> m Unit
+traverseScope_ :: forall a b c d f m. Foldable f => Applicative m => (b -> m d) -> (a -> m c) -> Scope b f a -> m Unit
 traverseScope_ f g = getAM <<< foldMapScope (AM <<< map (const unit) <<< f) (AM <<< map (const unit) <<< g)
 
 hoistScope :: forall f g a b. Functor f => (forall x. f x -> g x) -> Scope b f a -> Scope b g a
