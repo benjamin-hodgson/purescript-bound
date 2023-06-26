@@ -86,10 +86,10 @@ instance boundWriterT :: Monoid w => Bound (WriterT w) where
 
 data Var b a = B b | F a
 
-derive instance genericVar :: (Generic b repB, Generic a repA) => Generic (Var b a) _
+derive instance genericVar :: Generic (Var b a) _
 derive instance eqVar :: (Eq b, Eq a) => Eq (Var b a)
 derive instance ordVar :: (Ord b, Ord a) => Ord (Var b a)
-instance showVar :: (Show b, Generic b repB, Show a, Generic a repA) => Show (Var b a) where
+instance showVar :: (Show b, Show a) => Show (Var b a) where
     show = genericShow
 
 instance functorVar :: Functor (Var b) where
@@ -141,10 +141,10 @@ fromScope scope = do
 toScope :: forall b f a. Monad f => f (Var b a) -> Scope b f a
 toScope = Scope <<< map (map pure)
 
-derive instance genericScope :: (Generic b repB, Generic (f (Var b (f a))) repNT, Generic a repA) => Generic (Scope b f a) _
+derive instance genericScope :: Generic (Scope b f a) _
 derive instance eqScope :: (Eq b, Eq1 f, Eq (f a), Eq (f (Var b (f a))), Eq a) => Eq (Scope b f a)
 derive instance ordScope :: (Ord b, Ord1 f, Ord (f a), Ord (f (Var b (f a))), Ord a) => Ord (Scope b f a)
-instance showScope :: (Show b, Generic b repB, Show (f (Var b (f a))), Generic (f (Var b (f a))) repNT, Show a, Generic a repA) => Show (Scope b f a) where
+instance showScope :: (Show b, Show (f (Var b (f a))), Show a) => Show (Scope b f a) where
     show = genericShow
 
 instance functorScope :: Functor f => Functor (Scope b f) where
