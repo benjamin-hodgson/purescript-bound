@@ -29,11 +29,13 @@ import Control.Monad.Writer (WriterT)
 import Data.Bifunctor (class Bifunctor, bimap)
 import Data.Bifoldable (class Bifoldable, bifoldMap, bifoldrDefault, bifoldlDefault)
 import Data.Bitraversable (class Bitraversable, bitraverse, bisequenceDefault)
+import Data.Eq (class Eq1)
 import Data.Foldable (class Foldable, foldMap, foldrDefault, foldlDefault)
-import Data.Generic (class Generic, gShow)
+import Data.Generic.Rep (class Generic)
+import Data.Ord (class Ord1)
+import Data.Show.Generic (genericShow)
 import Data.Traversable (class Traversable, traverse, sequenceDefault)
 import Data.Maybe (Maybe(..))
-import Data.Monoid (class Monoid, mempty)
 import Prelude
 
 
@@ -84,11 +86,11 @@ instance boundWriterT :: Monoid w => Bound (WriterT w) where
 
 data Var b a = B b | F a
 
-derive instance genericVar :: (Generic b, Generic a) => Generic (Var b a)
+derive instance genericVar :: Generic (Var b a) _
 derive instance eqVar :: (Eq b, Eq a) => Eq (Var b a)
 derive instance ordVar :: (Ord b, Ord a) => Ord (Var b a)
-instance showVar :: (Generic b, Generic a) => Show (Var b a) where
-    show = gShow
+instance showVar :: (Show b, Show a) => Show (Var b a) where
+    show = genericShow
 
 instance functorVar :: Functor (Var b) where
     map = liftA1
@@ -97,31 +99,31 @@ instance applyVar :: Apply (Var b) where
 instance applicativeVar :: Applicative (Var b) where
     pure = F
 instance bindVar :: Bind (Var b) where
-    bind (B x) f = B x
+    bind (B x) _f = B x
     bind (F y) f = f y
 instance monadVar :: Monad (Var b)
 
 instance foldableVar :: Foldable (Var b) where
-    foldMap f (B x) = mempty
+    foldMap _f (B _x) = mempty
     foldMap f (F y) = f y
     foldr f = foldrDefault f
     foldl f = foldlDefault f
 instance traversableVar :: Traversable (Var b) where
-    traverse f (B x) = pure (B x)
+    traverse _f (B x) = pure (B x)
     traverse f (F y) = F <$> f y
     sequence x = sequenceDefault x
 
 instance bifunctorVar :: Bifunctor Var where
-    bimap f g (B x) = B (f x)
-    bimap f g (F y) = F (g y)
+    bimap f _g (B x) = B (f x)
+    bimap _f g (F y) = F (g y)
 instance bifoldableVar :: Bifoldable Var where
-    bifoldMap f g (B x) = f x
-    bifoldMap f g (F y) = g y
+    bifoldMap f _g (B x) = f x
+    bifoldMap _f g (F y) = g y
     bifoldr f = bifoldrDefault f
     bifoldl f = bifoldlDefault f
 instance bitraversableVar :: Bitraversable Var where
-    bitraverse f g (B x) = B <$> f x
-    bitraverse f g (F y) = F <$> g y
+    bitraverse f _g (B x) = B <$> f x
+    bitraverse _f g (F y) = F <$> g y
     bisequence x = bisequenceDefault x
 
 
@@ -139,11 +141,11 @@ fromScope scope = do
 toScope :: forall b f a. Monad f => f (Var b a) -> Scope b f a
 toScope = Scope <<< map (map pure)
 
-derive instance genericScope :: (Generic b, Generic (f (Var b (f a))), Generic a) => Generic (Scope b f a)
-derive instance eqScope :: (Eq b, Eq (f (Var b (f a))), Eq a) => Eq (Scope b f a)
-derive instance ordScope :: (Ord b, Ord (f (Var b (f a))), Ord a) => Ord (Scope b f a)
-instance showScope :: (Generic b, Generic (f (Var b (f a))), Generic a) => Show (Scope b f a) where
-    show = gShow
+derive instance genericScope :: Generic (Scope b f a) _
+derive instance eqScope :: (Eq b, Eq1 f, Eq (f a), Eq (f (Var b (f a))), Eq a) => Eq (Scope b f a)
+derive instance ordScope :: (Ord b, Ord1 f, Ord (f a), Ord (f (Var b (f a))), Ord a) => Ord (Scope b f a)
+instance showScope :: (Show b, Show (f (Var b (f a))), Show a) => Show (Scope b f a) where
+    show = genericShow
 
 instance functorScope :: Functor f => Functor (Scope b f) where
     map f = Scope <<< map (map (map f)) <<< unScope
@@ -204,7 +206,7 @@ bindings = foldMap f <<< unScope
           f _ = []
 
 mapBound :: forall a b c f. Functor f => (b -> c) -> Scope b f a -> Scope c f a
-mapBound f = mapScope f id
+mapBound f = mapScope f identity
 
 mapScope :: forall a b c d f. Functor f => (b -> d) -> (a -> c) -> Scope b f a -> Scope d f c
 mapScope f g = Scope <<< map (bimap f (map g)) <<< unScope
@@ -221,6 +223,7 @@ traverseBound f = traverseScope f pure
 traverseScope :: forall a b c d f m. Traversable f => Applicative m => (b -> m d) -> (a -> m c) -> Scope b f a -> m (Scope d f c)
 traverseScope f g = map Scope <<< traverse (bitraverse f (traverse g)) <<< unScope
 
+newtype AM :: (Type -> Type) -> Type -> Type
 newtype AM f a = AM (f a)  -- for "Applicative Monoid"
 getAM :: forall f a. AM f a -> f a
 getAM (AM x) = x
